@@ -196,10 +196,12 @@ for i in range(10000):
     _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
     #print("----------------------------------------\n" * 2)
     if i % 100 == 0:
-        t1, t2 = sess.run([ top_k_op,person_probability ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
+        t1, t2 = sess.run([ top_k_op, loss ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
         print(" the " + str(i) + "th accuracy :")
-        print(t1)
-        print(t2)
+        print( np.sum(t1) / 2.0 / BatchSize )
+        print(" the " + str(i) + "th loss :")
+        print( t2 )
+        print(tmplabel)
 
 # img = io.imread(FilePath + '\\0001001.bmp')
 # print(FilePath)
