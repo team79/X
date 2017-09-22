@@ -25,7 +25,7 @@ from skimage import io
 import random
 #import read_image_in_pai
 
-BatchSize = 30
+BatchSize = 128
 SampleLen = 632
 TrainLen = 316
 TestLen = 316
@@ -69,7 +69,7 @@ norm2 = tf.nn.lrn( conv2, 4, bias = 1.0, alpha = 0.001 / 9.0, beta = 0.75 )
 pool2 = tf.nn.max_pool( norm2, ksize = [ 1, 3, 3, 1 ], strides = [ 1, 2, 2, 1 ], 
                        padding = 'SAME' )
 
-reshape = tf.reshape( pool2, [ batch_size, -1 ] )
+reshape = tf.reshape( pool2, [ BatchSize, -1 ] )
 dim = reshape.get_shape()[1].value
 weight3 = variable_with_weight_loss( shape = [ dim, SampleLen ], stddev = 0.04, w1 = 0.004 )
 bias3 = tf.Variable( tf.constant( 0.1, shape = [ SampleLen ] ) )
@@ -122,10 +122,13 @@ def read_image_in_pai(FLAGS):
     return img
 
 def randimg( image, index ):
-    id1 = random.sample(index,BatchSize)
+    label = [ i for i in range(TrainLen) ]
+    select = random.sample(label,BatchSize)
+    id1 = [ index[i] for i in select ]
     id2 = [ i + SampleLen for i in id1 ]
     id = id1 + id2 
-    return image[id]
+    anslabel = select + select
+    return image[id], anslabel
 
 def get_cmc( image_feature ):
     dist = np.zeros([TestLen,TestLen])
@@ -187,13 +190,16 @@ for i in range(10000):
     if i % 100 == 0:
         print("----------------------------------------\n" * 2)
         print(" the " + str(i) + "th :")
-    tmpimg = randimg( img, train_index )
+    tmpimg, tmplabel = randimg( img, train_index )
     if i % 100 == 0:
         print(" the " + str(i) + "th begin :")
-    _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tmpimg })
+    _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
     #print("----------------------------------------\n" * 2)
     if i % 100 == 0:
-        
+        t1, t2 = sess.run([ top_k_op,person_probability ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
+        print(" the " + str(i) + "th accuracy :")
+        print(t1)
+        print(t2)
 
 # img = io.imread(FilePath + '\\0001001.bmp')
 # print(FilePath)
