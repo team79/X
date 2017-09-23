@@ -32,7 +32,7 @@ TestLen = 316
 ImageHeight = 128
 ImageWidth = 48
 ImageChannel = 3
-FinalLocalSize = 400
+FinalLocalSize = 2048
 
 #FilePath = "G:\DML\数据库\VIPeRa\\all"
 
@@ -71,15 +71,15 @@ pool2 = tf.nn.max_pool( norm2, ksize = [ 1, 3, 3, 1 ], strides = [ 1, 2, 2, 1 ],
 
 reshape = tf.reshape( pool2, [ BatchSize * 2, -1 ] )
 dim = reshape.get_shape()[1].value
-weight3 = variable_with_weight_loss( shape = [ dim, SampleLen ], stddev = 0.04, w1 = 0.004 )
-bias3 = tf.Variable( tf.constant( 0.1, shape = [ SampleLen ] ) )
+weight3 = variable_with_weight_loss( shape = [ dim, FinalLocalSize ], stddev = 0.04, w1 = 0.004 )
+bias3 = tf.Variable( tf.constant( 0.1, shape = [ FinalLocalSize ] ) )
 local3 = tf.nn.relu( tf.matmul( reshape, weight3 ) + bias3 )
 
 # weight4 = variable_with_weight_loss( shape = [ SampleLen, SampleLen ], stddev = 0.04, w1 = 0.004 )
 # bias4 = tf.Variable( tf.constant( 0.1, shape = [ SampleLen ] ) )
 # local4 = tf.nn.relu( tf.matmul( local3, weight4 ) + bias4 )
 
-weight5 = variable_with_weight_loss( shape = [ SampleLen, TrainLen ], stddev = 1 / 192.0, w1 = 0.0 )
+weight5 = variable_with_weight_loss( shape = [ FinalLocalSize, TrainLen ], stddev = 1 / 192.0, w1 = 0.0 )
 bias5 = tf.Variable( tf.constant( 0.0, shape = [ TrainLen ] ) )
 logits = tf.add( tf.matmul( local3, weight5 ), bias5 )
 
@@ -176,33 +176,82 @@ print(img.shape)
 print("----------------------------------------\n" * 2)
 print("session initial")
 sess = tf.InteractiveSession()
-tf.global_variables_initializer().run()
 
-train_index = random.sample([ i for i in range(SampleLen)],TrainLen)
-test_index = list( set( [ i for i in range(SampleLen) ] ) - set( train_index ) )
-
-id11 = test_index
-id22 = [ i + SampleLen for i in id11 ]
-idd = id11 + id22
-test_img = img[idd]
-
-for i in range(10000):
-    if i % 100 == 0:
-        print("----------------------------------------\n" * 2)
-        print(" the " + str(i) + "th :")
-    tmpimg, tmplabel = randimg( img, train_index )
-    if i % 100 == 0:
-        print(" the " + str(i) + "th begin :")
-    _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
-    #print("----------------------------------------\n" * 2)
-    if i % 100 == 0:
-        t1, t2 = sess.run([ top_k_op, loss ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
-        print(" the " + str(i) + "th accuracy :")
-        print( np.sum(t1) / 2.0 / BatchSize )
-        print(" the " + str(i) + "th loss :")
-        print( t2 )
-        print(tmplabel)
-
-# img = io.imread(FilePath + '\\0001001.bmp')
-# print(FilePath)
-# print(img.shape)
+for times in range(10):
+    print("**************************************************************\n" * 2)
+    print(" the " + str(times) + "th random begin :")
+    tf.global_variables_initializer().run()
+    
+    train_index = random.sample([ i for i in range(SampleLen)],TrainLen)
+    test_index = list( set( [ i for i in range(SampleLen) ] ) - set( train_index ) )
+    # print("--------------------------------------- train_index\n")
+    # print(train_index)
+    # print("--------------------------------------- test_index\n")
+    # print(test_index)
+    id11 = test_index
+    id22 = [ i + SampleLen for i in id11 ]
+    idd = id11 + id22
+    test_img = img[idd]
+    
+    for i in range(4000):
+        if i % 100 == 0:
+            print("----------------------------------------\n" * 2)
+            print(" the " + str(i) + "th :")
+        tmpimg, tmplabel = randimg( img, train_index )
+        if i % 100 == 0:
+            print(" the " + str(i) + "th begin :")
+        _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
+        #print("----------------------------------------\n" * 2)
+        if i % 100 == 0:
+            t1, t2 = sess.run([ top_k_op, loss ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
+            print(" the " + str(i) + "th accuracy :")
+            print( np.sum(t1) / 2.0 / BatchSize )
+            print(" the " + str(i) + "th loss :")
+            print( t2 )
+            # print(" the " + str(i) + "th class accuracy:")
+            print(" the " + str(i) + "th train cmc:")
+            # cnt = 0
+            test_feature = np.zeros([TestLen*2,FinalLocalSize])
+            tmpindex = 0
+            for j in train_index:
+                tmpimg[0] = img[j]
+                tmpimg[1] = img[j+SampleLen]
+                t1 = sess.run([local3], feed_dict = { image_holder : tmpimg } )
+                t1 = np.array(t1[0])
+                # print(t1[0])
+                # print(t1[1])
+                test_feature[tmpindex] = t1[0]
+                test_feature[tmpindex+TestLen] = t1[1]
+                tmpindex += 1
+            cmc = get_cmc( test_feature )
+            print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
+            print( "%.2f%% "%(cmc[TestLen-1]*100)  )
+    
+    print(" the " + str(times) + "th test cmc:")
+    # cnt = 0
+    test_feature = np.zeros([TestLen*2,FinalLocalSize])
+    tmpindex = 0
+    for j in test_index:
+        tmpimg[0] = img[j]
+        tmpimg[1] = img[j+SampleLen]
+        t1 = sess.run([local3], feed_dict = { image_holder : tmpimg } )
+        t1 = np.array(t1[0])
+        # print(t1.shape)
+        test_feature[tmpindex] = t1[0]
+        test_feature[tmpindex+TestLen] = t1[1]
+        tmpindex += 1
+    cmc = get_cmc( test_feature )
+    print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
+    print( "%.2f%% "%(cmc[TestLen-1]*100)  )
+            #     t1 = np.array(t1[0])
+            #     # print(t1.shape)
+            #     t1 = np.argmax(t1,1)
+            #     print(t1)
+            #     if t1[0] == t1[1] :
+            #         cnt += 1
+            # print( cnt * 1.0 / TrainLen )
+    
+    
+    # img = io.imread(FilePath + '\\0001001.bmp')
+    # print(FilePath)
+    # print(img.shape)
