@@ -220,10 +220,14 @@ def resnet_v2(inputs, # A tensor of size [batch, height_in, width_in, channels].
       if num_classes is not None:  # 是否有通道数
         net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None, # 无激活函数和正则项
                           normalizer_fn=None, scope='logits') # 添加一个输出通道num_classes的1*1的卷积
+      cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits( 
+            logits = net[:,0,0,:], labels = label_holder )
+      loss = tf.reduce_mean( cross_entropy )
+      train_op = tf.train.AdamOptimizer( 1e-3 ).minimize( loss )
       end_points = slim.utils.convert_collection_to_dict(end_points_collection) # 将collection转化为python的dict
       if num_classes is not None:
         end_points['predictions'] = slim.softmax(net, scope='predictions') # 输出网络结果
-      return net, end_points
+      return train_op, loss, net, end_points
 #------------------------------ResNet的生成函数定义好了----------------------------------------
 
 
@@ -350,13 +354,12 @@ def time_tensorflow_run(session, target, info_string):
 
 # inputs = tf.random_uniform((batch_size, height, width, 3))
 xxx = tf.placeholder(tf.float32,[batch_size, height, width, 3])
-with slim.arg_scope(resnet_arg_scope(is_training=True)): # is_training设置为false
-   net, end_points = resnet_v2_152(xxx, 1000)
 label_holder = tf.placeholder( tf.int32, [batch_size] )
-cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits( 
-            logits = net[:,0,0,:], labels = label_holder )
-loss = tf.reduce_mean( cross_entropy )
-train_op = tf.train.AdamOptimizer( 1e-3 ).minimize( loss )
+with slim.arg_scope(resnet_arg_scope(is_training=True)): # is_training设置为false
+   train_op, loss, net, end_points = resnet_v2_152(xxx, 1000)
+
+print(loss)
+print(net)
 # init = tf.global_variables_initializer()
 # sess = tf.Session()
 # sess.run(init)  
