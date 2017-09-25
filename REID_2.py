@@ -227,22 +227,22 @@ for times in range(10):
             print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
             print( "%.2f%% "%(cmc[TestLen-1]*100)  )
     
-    print(" the " + str(times) + "th test cmc:")
-    # cnt = 0
-    test_feature = np.zeros([TestLen*2,FinalLocalSize])
-    tmpindex = 0
-    for j in test_index:
-        tmpimg[0] = img[j]
-        tmpimg[1] = img[j+SampleLen]
-        t1 = sess.run([local3], feed_dict = { image_holder : tmpimg } )
-        t1 = np.array(t1[0])
-        # print(t1.shape)
-        test_feature[tmpindex] = t1[0]
-        test_feature[tmpindex+TestLen] = t1[1]
-        tmpindex += 1
-    cmc = get_cmc( test_feature )
-    print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
-    print( "%.2f%% "%(cmc[TestLen-1]*100)  )
+            print(" the " + str(times) + "th test cmc:")
+            # cnt = 0
+            test_feature = np.zeros([TestLen*2,FinalLocalSize])
+            tmpindex = 0
+            for j in test_index:
+                tmpimg[0] = img[j]
+                tmpimg[1] = img[j+SampleLen]
+                t1 = sess.run([local3], feed_dict = { image_holder : tmpimg } )
+                t1 = np.array(t1[0])
+                # print(t1.shape)
+                test_feature[tmpindex] = t1[0]
+                test_feature[tmpindex+TestLen] = t1[1]
+                tmpindex += 1
+            cmc = get_cmc( test_feature )
+            print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
+            print( "%.2f%% "%(cmc[TestLen-1]*100)  )
             #     t1 = np.array(t1[0])
             #     # print(t1.shape)
             #     t1 = np.argmax(t1,1)
