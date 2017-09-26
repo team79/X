@@ -465,7 +465,7 @@ for times in range(1):
     print(" the " + str(times) + "th random begin :")
     tf.global_variables_initializer().run()
     saver = tf.train.Saver()  
-    
+
     train_index = random.sample([ i for i in range(TrainLen)],TrainLen)
     test_index = list( set( [ i for i in range(SampleLen) ] ) - set( train_index ) )
     # print("--------------------------------------- train_index\n")
@@ -536,7 +536,7 @@ for times in range(1):
             # print( cnt * 1.0 / TrainLen )
     
     
-    savepath = os.path.join(FLAGS.checkpoint, "model.ckpt")
+    savepath = os.path.join(FLAGS.checkpointDir, "model.ckpt")
     savepath = saver.save(sess,savepath)
     # img = io.imread(FilePath + '\\0001001.bmp')
     # print(FilePath)

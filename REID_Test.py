@@ -464,7 +464,7 @@ for times in range(1):
     print("**************************************************************\n" * 2)
     print(" the " + str(times) + "th random begin :")
     # tf.global_variables_initializer().run()
-    savepath = os.path.join(FLAGS.checkpoint, "model.ckpt")
+    savepath = os.path.join(FLAGS.checkpointDir, "model.ckpt")
     saver.restore(sess,savepath)  
     
     train_index = random.sample([ i for i in range(TrainLen)],TrainLen)
