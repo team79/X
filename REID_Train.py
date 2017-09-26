@@ -460,12 +460,13 @@ tf.global_variables_initializer().run()
 # num_batches=100
 # time_tensorflow_run(sess, net, "Forward") 
 
-for times in range(10):
+for times in range(1):
     print("**************************************************************\n" * 2)
     print(" the " + str(times) + "th random begin :")
     tf.global_variables_initializer().run()
+    saver = tf.train.Saver()  
     
-    train_index = random.sample([ i for i in range(SampleLen)],TrainLen)
+    train_index = random.sample([ i for i in range(TrainLen)],TrainLen)
     test_index = list( set( [ i for i in range(SampleLen) ] ) - set( train_index ) )
     # print("--------------------------------------- train_index\n")
     # print(train_index)
@@ -476,7 +477,7 @@ for times in range(10):
     idd = id11 + id22
     test_img = img[idd]
     
-    for i in range(4000):
+    for i in range(200):
         if i % 100 == 0:
             print("----------------------------------------\n" * 2)
             print(" the " + str(i) + "th :")
@@ -535,6 +536,8 @@ for times in range(10):
             # print( cnt * 1.0 / TrainLen )
     
     
+    savepath = os.path.join(FLAGS.checkpoint, "model.ckpt")
+    savepath = saver.save(sess,savepath)
     # img = io.imread(FilePath + '\\0001001.bmp')
     # print(FilePath)
     # print(img.shape)

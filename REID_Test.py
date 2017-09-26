@@ -455,17 +455,19 @@ print(img.shape)
 print("----------------------------------------\n" * 2)
 print("session initial")
 sess = tf.InteractiveSession()
-tf.global_variables_initializer().run()
-
+# tf.global_variables_initializer().run()
+saver = tf.train.Saver()  
 # num_batches=100
 # time_tensorflow_run(sess, net, "Forward") 
 
-for times in range(10):
+for times in range(1):
     print("**************************************************************\n" * 2)
     print(" the " + str(times) + "th random begin :")
-    tf.global_variables_initializer().run()
+    # tf.global_variables_initializer().run()
+    savepath = os.path.join(FLAGS.checkpoint, "model.ckpt")
+    saver.restore(sess,savepath)  
     
-    train_index = random.sample([ i for i in range(SampleLen)],TrainLen)
+    train_index = random.sample([ i for i in range(TrainLen)],TrainLen)
     test_index = list( set( [ i for i in range(SampleLen) ] ) - set( train_index ) )
     # print("--------------------------------------- train_index\n")
     # print(train_index)
@@ -476,14 +478,14 @@ for times in range(10):
     idd = id11 + id22
     test_img = img[idd]
     
-    for i in range(4000):
+    for i in range(200):
         if i % 100 == 0:
             print("----------------------------------------\n" * 2)
             print(" the " + str(i) + "th :")
         tmpimg, tmplabel = randimg( img, train_index )
         if i % 100 == 0:
             print(" the " + str(i) + "th begin :")
-        _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
+        # _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
         #print("----------------------------------------\n" * 2)
         if i % 100 == 0:
             t1, t2 = sess.run([ top_k_op, loss ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })

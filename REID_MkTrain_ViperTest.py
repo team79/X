@@ -350,7 +350,7 @@ def resnet_v2_200(inputs, # unit提升的主要场所是block2
 
 # inputs = tf.random_uniform((batch_size, height, width, 3))
 with slim.arg_scope(resnet_arg_scope(is_training=True)): # is_training设置为false
-    train_op, loss, net, end_points, FinalLocal, top_k_op = resnet_v2_152(image_holder, TrainLen)
+    train_op, loss, net, end_points, FinalLocal, top_k_op = resnet_v2_152(image_holder, 1000)
 
 print("loss done!")
 
@@ -460,79 +460,79 @@ tf.global_variables_initializer().run()
 # num_batches=100
 # time_tensorflow_run(sess, net, "Forward") 
 
-for times in range(10):
-    print("**************************************************************\n" * 2)
-    print(" the " + str(times) + "th random begin :")
-    tf.global_variables_initializer().run()
+# for times in range(10):
+#     print("**************************************************************\n" * 2)
+#     print(" the " + str(times) + "th random begin :")
+#     tf.global_variables_initializer().run()
     
-    train_index = random.sample([ i for i in range(SampleLen)],TrainLen)
-    test_index = list( set( [ i for i in range(SampleLen) ] ) - set( train_index ) )
-    # print("--------------------------------------- train_index\n")
-    # print(train_index)
-    # print("--------------------------------------- test_index\n")
-    # print(test_index)
-    id11 = test_index
-    id22 = [ i + SampleLen for i in id11 ]
-    idd = id11 + id22
-    test_img = img[idd]
+#     train_index = random.sample([ i for i in range(SampleLen)],TrainLen)
+#     test_index = list( set( [ i for i in range(SampleLen) ] ) - set( train_index ) )
+#     # print("--------------------------------------- train_index\n")
+#     # print(train_index)
+#     # print("--------------------------------------- test_index\n")
+#     # print(test_index)
+#     id11 = test_index
+#     id22 = [ i + SampleLen for i in id11 ]
+#     idd = id11 + id22
+#     test_img = img[idd]
     
-    for i in range(4000):
-        if i % 100 == 0:
-            print("----------------------------------------\n" * 2)
-            print(" the " + str(i) + "th :")
-        tmpimg, tmplabel = randimg( img, train_index )
-        if i % 100 == 0:
-            print(" the " + str(i) + "th begin :")
-        _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
-        #print("----------------------------------------\n" * 2)
-        if i % 100 == 0:
-            t1, t2 = sess.run([ top_k_op, loss ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
-            print(" the " + str(i) + "th accuracy :")
-            print( np.sum(t1) / 2.0 / BatchSize )
-            print(" the " + str(i) + "th loss :")
-            print( t2 )
-            # print(" the " + str(i) + "th class accuracy:")
-            print(" the " + str(i) + "th train cmc:")
-            # cnt = 0
-            test_feature = np.zeros([TestLen*2,FinalLocalSize])
-            tmpindex = 0
-            for j in train_index:
-                tmpimg[0] = img[j]
-                tmpimg[1] = img[j+SampleLen]
-                t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
-                t1 = np.array(t1[0])
-                # print(t1[0])
-                # print(t1[1])
-                test_feature[tmpindex] = t1[0]
-                test_feature[tmpindex+TestLen] = t1[1]
-                tmpindex += 1
-            cmc = get_cmc( test_feature )
-            print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
-            print( "%.2f%% "%(cmc[TestLen-1]*100)  )
+#     for i in range(4000):
+#         if i % 100 == 0:
+#             print("----------------------------------------\n" * 2)
+#             print(" the " + str(i) + "th :")
+#         tmpimg, tmplabel = randimg( img, train_index )
+#         if i % 100 == 0:
+#             print(" the " + str(i) + "th begin :")
+#         _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
+#         #print("----------------------------------------\n" * 2)
+#         if i % 100 == 0:
+#             t1, t2 = sess.run([ top_k_op, loss ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
+#             print(" the " + str(i) + "th accuracy :")
+#             print( np.sum(t1) / 2.0 / BatchSize )
+#             print(" the " + str(i) + "th loss :")
+#             print( t2 )
+#             # print(" the " + str(i) + "th class accuracy:")
+#             print(" the " + str(i) + "th train cmc:")
+#             # cnt = 0
+#             test_feature = np.zeros([TestLen*2,FinalLocalSize])
+#             tmpindex = 0
+#             for j in train_index:
+#                 tmpimg[0] = img[j]
+#                 tmpimg[1] = img[j+SampleLen]
+#                 t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
+#                 t1 = np.array(t1[0])
+#                 # print(t1[0])
+#                 # print(t1[1])
+#                 test_feature[tmpindex] = t1[0]
+#                 test_feature[tmpindex+TestLen] = t1[1]
+#                 tmpindex += 1
+#             cmc = get_cmc( test_feature )
+#             print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
+#             print( "%.2f%% "%(cmc[TestLen-1]*100)  )
     
-            print(" the " + str(times) + "th test cmc:")
-            # cnt = 0
-            test_feature = np.zeros([TestLen*2,FinalLocalSize])
-            tmpindex = 0
-            for j in test_index:
-                tmpimg[0] = img[j]
-                tmpimg[1] = img[j+SampleLen]
-                t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
-                t1 = np.array(t1[0])
-                # print(t1.shape)
-                test_feature[tmpindex] = t1[0]
-                test_feature[tmpindex+TestLen] = t1[1]
-                tmpindex += 1
-            cmc = get_cmc( test_feature )
-            print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
-            print( "%.2f%% "%(cmc[TestLen-1]*100)  )
-            #     t1 = np.array(t1[0])
-            #     # print(t1.shape)
-            #     t1 = np.argmax(t1,1)
-            #     print(t1)
-            #     if t1[0] == t1[1] :
-            #         cnt += 1
-            # print( cnt * 1.0 / TrainLen )
+#             print(" the " + str(times) + "th test cmc:")
+#             # cnt = 0
+#             test_feature = np.zeros([TestLen*2,FinalLocalSize])
+#             tmpindex = 0
+#             for j in test_index:
+#                 tmpimg[0] = img[j]
+#                 tmpimg[1] = img[j+SampleLen]
+#                 t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
+#                 t1 = np.array(t1[0])
+#                 # print(t1.shape)
+#                 test_feature[tmpindex] = t1[0]
+#                 test_feature[tmpindex+TestLen] = t1[1]
+#                 tmpindex += 1
+#             cmc = get_cmc( test_feature )
+#             print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
+#             print( "%.2f%% "%(cmc[TestLen-1]*100)  )
+#             #     t1 = np.array(t1[0])
+#             #     # print(t1.shape)
+#             #     t1 = np.argmax(t1,1)
+#             #     print(t1)
+#             #     if t1[0] == t1[1] :
+#             #         cnt += 1
+#             # print( cnt * 1.0 / TrainLen )
     
     
     # img = io.imread(FilePath + '\\0001001.bmp')
