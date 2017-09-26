@@ -3,7 +3,7 @@
 
 Typical use:
 
-   from tensorflow.contrib.slim.nets import resnet_v2
+    from tensorflow.contrib.slim.nets import resnet_v2
 
 ResNet-101 for image classification into 1000 classes:
 
@@ -54,7 +54,7 @@ def subsample(inputs, factor, scope=None):
     return inputs
   else:
     return slim.max_pool2d(inputs, [1, 1], stride=factor, scope=scope)
-
+    
 
 ########创建卷积层########
 def conv2d_same(inputs, num_outputs, kernel_size, stride, scope=None): 
