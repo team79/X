@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, absolute_import
 
@@ -30,6 +31,16 @@ import collections # 原生的collections库
 slim = tf.contrib.slim # 使用方便的contrib.slim库来辅助创建ResNet
 #import read_image_in_pai
 
+BatchSize = 128
+TrainLen = 12936
+ImageHeight = 128
+ImageWidth = 64
+ImageChannel = 3
+FinalLocalSize = 2048
+
+TrainInit = False
+ImageInit = False
+
 
 parser = argparse.ArgumentParser()
 #获得buckets路径
@@ -40,9 +51,11 @@ parser.add_argument('--checkpointDir', type=str, default='',
                         help='output model path')
 FLAGS, _ = parser.parse_known_args()
 
-dirname = os.path.join(FLAGS.checkpointDir, "array.npy")
-a = np.zeros([3,4])
-a[2,2] = 1
-np.save(dirname,a)
-b = np.load(dirname)
-print(b)
+dirname = os.path.join(FLAGS.buckets, "Mk1501Image.txt")
+c = np.fromstring(file_io.read_file_to_string(dirname)).reshape([TrainLen,ImageHeight, ImageWidth,3])
+print(c.shape)
+print(c[0,0,0,:])
+dirname = os.path.join(FLAGS.buckets, "Mk1501Label.txt")
+c = np.fromstring(file_io.read_file_to_string(dirname)).reshape([TrainLen,ImageHeight, ImageWidth,3])
+print(c.shape)
+print(c[0])
