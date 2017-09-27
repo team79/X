@@ -449,9 +449,9 @@ print(label.shape)
 print("----------------------------------------\n" * 2)
 print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "session initial")
 sess = tf.InteractiveSession()
-saver = tf.train.Saver()  
+saver = tf.train.Saver()
 
-for times in range(1):
+for times in range(3):
     print("**************************************************************\n" * 2)
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(times + 1) + "th mk1501 train begin :")
     if TrainInit == True:
@@ -465,10 +465,10 @@ for times in range(1):
         print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "load model variable done!")
 
     
-    for i in range(2000):
+    for i in range(10000):
         if i % 100 == 0:
             print("----------------------------------------\n" * 2)
-            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i) + "th begin :")
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th begin :")
         select = random.sample([ tt for tt in range(TrainLen) ],BatchSize)
         tmpimg = img[select]
         tmplabel = label[select]
@@ -480,5 +480,5 @@ for times in range(1):
         
     savepath = os.path.join(FLAGS.checkpointDir, "model.ckpt")
     savepath = saver.save(sess,savepath)
-    print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(times + 1) + "th mk1501 train end :")
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(times + 1) + "th mk1501 train end! model has been saved!")
     print("**************************************************************\n" * 2)

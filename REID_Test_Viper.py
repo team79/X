@@ -35,7 +35,7 @@ SampleLen = 632
 TrainLen = 316
 TestLen = 316
 ImageHeight = 128
-ImageWidth = 48
+ImageWidth = 64
 ImageChannel = 3
 FinalLocalSize = 2048
 ClassNum = 1501
@@ -47,10 +47,10 @@ ClassNum = 1501
 # #-----------------------------------------------------------------------------------------------------------------------------
 
 print("----------------------------------------\n" * 2)
-print("begin construct deep model:")
+print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "begin construct deep model:")
 
-image_holder = tf.placeholder(tf.float32,[BatchSize * 2, ImageHeight, ImageWidth, 3])
-label_holder = tf.placeholder( tf.int32, [BatchSize * 2] )
+image_holder = tf.placeholder(tf.float32,[BatchSize, ImageHeight, ImageWidth, 3])
+label_holder = tf.placeholder( tf.int32, [BatchSize] )
 
 class Block(collections.namedtuple('Block', ['scope', 'unit_fn', 'args'])):
     '''
@@ -352,7 +352,7 @@ def resnet_v2_200(inputs, # unit提升的主要场所是block2
 with slim.arg_scope(resnet_arg_scope(is_training=True)): # is_training设置为false
     train_op, loss, net, end_points, FinalLocal, top_k_op = resnet_v2_152(image_holder, ClassNum)
 
-print("loss done!")
+print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " +"loss done!")
 
 # #-----------------------------------------------------------------------------------------------------------------------------
 # #------------------------------------------------- function define  ----------------------------------------------------------
@@ -363,15 +363,16 @@ def read_image( filepath ):
     img_obj = file_io.read_file_to_string(filepath)
     file_io.write_string_to_file("temp.jpg", img_obj)
     img = scipy.ndimage.imread("temp.jpg", mode="RGB")
+    # img = img.resize(([ImageHeight, ImageWidth,3]))
     return img
 
 def read_image_in_pai(FLAGS):
-    img = np.zeros([1264,128,48,3])
+    img = np.zeros([SampleLen*2,ImageHeight, ImageWidth,3])
     dirname = os.path.join(FLAGS.buckets, "")
     files = tf.gfile.ListDirectory(dirname) 
     for i in range(len(files)) :
         imagepath = os.path.join(FLAGS.buckets, files[i])
-        img[i] = read_image(imagepath)
+        img[i,:,4:52,:] = read_image(imagepath)
     # tempimg = io.imread(os.path.join(file_path,img_list[133]))
     # print(tempimg[111,33])
     # print(img[133,111,33])
@@ -459,18 +460,19 @@ sess = tf.InteractiveSession()
 saver = tf.train.Saver()  
 # num_batches=100
 # time_tensorflow_run(sess, net, "Forward") 
+savepath = os.path.join(FLAGS.checkpointDir, "model.ckpt")
+saver.restore(sess,savepath)  
+print("load model done!")
 
-for times in range(1):
+for times in range(10):
     print("**************************************************************\n" * 2)
-    print(" the " + str(times) + "th random begin :")
+    # print(" the " + str(times + 1) + "th random begin :")
     # tf.global_variables_initializer().run()
-    savepath = os.path.join(FLAGS.checkpointDir, "model.ckpt")
-    saver.restore(sess,savepath)  
     
     train_index = random.sample([ i for i in range(SampleLen)],TrainLen)
     test_index = list( set( [ i for i in range(SampleLen) ] ) - set( train_index ) )
-    # print("--------------------------------------- train_index\n")
-    # print(train_index)
+    print("--------------------------------------- train_index\n")
+    print(test_index)
     # print("--------------------------------------- test_index\n")
     # print(test_index)
     # id11 = test_index
@@ -478,24 +480,26 @@ for times in range(1):
     # idd = id11 + id22
     # test_img = img[idd]
     
-    for i in range(10):
+    for i in range(1):
         print("----------------------------------------\n" * 2)
         print(" the " + str(i) + "th :")
-        tmpimg, tmplabel = randimg( img, train_index )
-        t1, t2 = sess.run([ top_k_op, loss ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
-        print(" the " + str(i) + "th accuracy :")
-        print( np.sum(t1) / 2.0 / BatchSize )
-        print(" the " + str(i) + "th loss :")
-        print( t2 )
+        tmpimg = np.zeros([BatchSize,ImageHeight, ImageWidth,3])
+        # t1, t2 = sess.run([ top_k_op, loss ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
+        # print(" the " + str(i) + "th accuracy :")
+        # print( np.sum(t1) / 2.0 / BatchSize )
+        # print(" the " + str(i) + "th loss :")
+        # print( t2 )
             # print(" the " + str(i) + "th class accuracy:")
-        print(" the " + str(i) + "th cmc:")
+        print(" the " + str(times + 1) + "th cmc:")
         # cnt = 0
         test_feature = np.zeros([TestLen*2,FinalLocalSize])
         tmpindex = 0
-        for j in train_index:
+        for j in test_index:
             tmpimg[0] = img[j]
             tmpimg[1] = img[j+SampleLen]
             t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
+            # print(len(t1))
+            # print(len(t1[0]))
             t1 = np.array(t1[0])
                 # print(t1[0])
                 # print(t1[1])
