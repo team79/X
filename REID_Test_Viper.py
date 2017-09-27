@@ -370,9 +370,13 @@ def read_image_in_pai(FLAGS):
     img = np.zeros([SampleLen*2,ImageHeight, ImageWidth,3])
     dirname = os.path.join(FLAGS.buckets, "")
     files = tf.gfile.ListDirectory(dirname) 
-    for i in range(len(files)) :
-        imagepath = os.path.join(FLAGS.buckets, files[i])
+    for i in range(int(len(files)/2)) :
+        imagepath = os.path.join(FLAGS.buckets, files[i*2])
+        print(files[i*2])
         img[i,:,4:52,:] = read_image(imagepath)
+        imagepath = os.path.join(FLAGS.buckets, files[i*2+1])
+        print(files[i*2+1])
+        img[i+SampleLen,:,4:52,:] = read_image(imagepath)
     # tempimg = io.imread(os.path.join(file_path,img_list[133]))
     # print(tempimg[111,33])
     # print(img[133,111,33])
@@ -508,6 +512,7 @@ for times in range(10):
             tmpindex += 1
         cmc = get_cmc( test_feature )
         print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
+        print(cmc)
         print( "%.2f%% "%(cmc[TestLen-1]*100)  )
     
             # print(" the " + str(times) + "th test cmc:")
