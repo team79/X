@@ -32,12 +32,12 @@ slim = tf.contrib.slim # 使用方便的contrib.slim库来辅助创建ResNet
 #import read_image_in_pai
 
 BatchSize = 128
-TrainLen = 12936
+TrainLen = 3368
 ImageHeight = 128
 ImageWidth = 64
 ImageChannel = 3
 FinalLocalSize = 2048
-
+DataBlockNum = 8
 TrainInit = False
 ImageInit = False
 
@@ -51,11 +51,23 @@ parser.add_argument('--checkpointDir', type=str, default='',
                         help='output model path')
 FLAGS, _ = parser.parse_known_args()
 
-dirname = os.path.join(FLAGS.buckets, "Mk1501Image.txt")
-c = np.fromstring(file_io.read_file_to_string(dirname)).reshape([TrainLen,ImageHeight, ImageWidth,3])
-print(c.shape)
-print(c[0,0,0,:])
-dirname = os.path.join(FLAGS.buckets, "Mk1501Label.txt")
-c = np.fromstring(file_io.read_file_to_string(dirname)).reshape([TrainLen,ImageHeight, ImageWidth,3])
-print(c.shape)
-print(c[0])
+img = np.zeros([TrainLen,ImageHeight, ImageWidth,3])
+label = np.zeros([TrainLen])
+for i in range(DataBlockNum):
+    dirname = os.path.join(FLAGS.buckets, "Mk1501TestProbeImage" + str(i+1) + ".txt")
+    x = file_io.read_file_to_string(dirname)
+    x = np.fromstring(x)
+    x = x.reshape([int(TrainLen/DataBlockNum),ImageHeight, ImageWidth,3])
+    img[int((TrainLen/DataBlockNum*i)):int((TrainLen/DataBlockNum*(i+1))),:,:,:] = x
+    print(img[int((TrainLen/DataBlockNum*i)),0,0,:])
+for i in range(DataBlockNum):
+    dirname = os.path.join(FLAGS.buckets, "Mk1501TestProbeLabel" + str(i+1) + ".txt")
+    x = file_io.read_file_to_string(dirname)
+    x = np.fromstring(x)
+    x = x.reshape([int(TrainLen/DataBlockNum)])
+    label[int((TrainLen/DataBlockNum*i)):int((TrainLen/DataBlockNum*(i+1)))] = x
+    print(label[int((TrainLen/DataBlockNum*i))])
+print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "image size : ") 
+print(img.shape)
+print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "label size : ") 
+print(label.shape)
