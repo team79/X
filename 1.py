@@ -1,2 +1,5 @@
-a = [1,2,1,4]
-print(a[0:3])
+import numpy as np
+
+a =  np.array([1,2,3])
+b = np.array([3,4,5])
+print(sum((a-b)**2))

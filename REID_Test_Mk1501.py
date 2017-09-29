@@ -406,6 +406,32 @@ def time_tensorflow_run(session, target, info_string):
            (datetime.now(), info_string, num_batches, mn, sd))
 
 
+def get_cmc( feature_probe, label_probe, feature_gallery, label_gallery ):
+    dist = np.zeros([ProbeLen,GalleryLen])
+    index = { i : [] for i in range(1502) }
+    for i in range(GalleryLen):
+        index[label_gallery[i]].append(i)
+    for i in range(ProbeLen):
+        for j in range(GalleryLen):
+            dist[i,j] = sum( (feature_probe[i] - feature_gallery[j] )**2 )
+    cmc = np.zeros([ProbeLen,GalleryLen])
+    for i in range(ProbeLen):
+        tm = GalleryLen
+        for t in range(len(index[label_probe[i]])):
+            cnt = 0
+            for j in range(GalleryLen):
+                if dist[i,j] < dist[i,index[label_probe[i]][t]]:
+                    cnt += 1
+            tm = min( tm, cnt )
+        cmc[i][tm] = 1.0
+    cmc = sum( cmc )
+    presum = 0
+    for i in range( GalleryLen ) :
+        presum += cmc[i]
+        cmc[i] = presum
+    cmc = cmc / TestLen 
+    return cmc
+    
 # #-----------------------------------------------------------------------------------------------------------------------------
 # #-----------------------------------------------------------------------------------------------------------------------------
 # #-----------------------------------------------------------------------------------------------------------------------------
@@ -499,8 +525,7 @@ for times in range(1):
         feature_probe = np.zeros([ProbeLen,FinalLocalSize])
         tmpimg = np.zeros([BatchSize, ImageHeight, ImageWidth, 3])
         for j in range(int(GalleryLen/BatchSize)):
-            if j % 1000 == 0:
-                print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th gallery image feature get!")
+            # print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th gallery image feature get!")
             tmpimg = img_gallery[(j*BatchSize):((j+1)*BatchSize)]
             t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
             feature_gallery[(j*BatchSize):((j+1)*BatchSize)] = t1[0]
@@ -510,16 +535,17 @@ for times in range(1):
         print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th gallery image feature done!")
 
         for j in range(int(ProbeLen/BatchSize)):
-            if j % 1000 == 0:
-                print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th probe image feature get!")
+            # print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th probe image feature get!")
             tmpimg = img_probe[(j*BatchSize):((j+1)*BatchSize)]
             t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
             feature_probe[(j*BatchSize):((j+1)*BatchSize)] = t1[0]
         tmpimg = img_probe[(ProbeLen-BatchSize):(ProbeLen)]
         t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
         feature_probe[(ProbeLen-BatchSize):(ProbeLen)] = t1[0]
-        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th gallery image feature done!")
-        
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th probe image feature done!")
+
+        cmc = get_cmc( feature_probe, label_probe, feature_gallery, label_gallery )
+        print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
     # savepath = os.path.join(FLAGS.checkpointDir, "model.ckpt")
     # savepath = saver.save(sess,savepath)
     # print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(times + 1) + "th mk1501 train end! model has been saved!")
