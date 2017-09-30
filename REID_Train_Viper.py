@@ -38,7 +38,7 @@ ImageChannel = 3
 FinalLocalSize = 2048
 ProbeLen = 632
 GalleryLen = 632
-ClassNum = 633
+ClassNum = 317
 
 TrainInit = False
 ImageInit = False
@@ -253,7 +253,7 @@ def resnet_v2(inputs, # A tensor of size [batch, height_in, width_in, channels].
                         logits = net[:,0,0,:], labels = label_holder )
 
             loss = tf.reduce_mean( cross_entropy )
-            train_op = tf.train.AdamOptimizer( 1e-6 ).minimize( loss )
+            train_op = tf.train.AdamOptimizer( 1e-5 ).minimize( loss )
 
             end_points = slim.utils.convert_collection_to_dict(end_points_collection) # 将collection转化为python的dict
             if num_classes is not None:
@@ -514,7 +514,7 @@ for times in range(10):
     tempTestGalleryImage[0:int(TrainLen/2)] = GalleryImg[test_index]
     tempTestGalleryLabel[0:int(TrainLen/2)] = [i for i in range(1,int(TrainLen/2)+1)]
     
-    for i in range(3000):
+    for i in range(10000):
         if i % 100 == 0:
             print("----------------------------------------\n" * 2)
             print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th begin :")
