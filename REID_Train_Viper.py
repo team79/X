@@ -30,15 +30,18 @@ import collections # 原生的collections库
 slim = tf.contrib.slim # 使用方便的contrib.slim库来辅助创建ResNet
 #import read_image_in_pai
 
-BatchSize = 128
-SampleLen = 632
-TrainLen = 316
-TestLen = 316
+BatchSize = 32
+TrainLen = 632
 ImageHeight = 128
 ImageWidth = 48
 ImageChannel = 3
 FinalLocalSize = 2048
+ProbeLen = 632
+GalleryLen = 632
+ClassNum = 633
 
+TrainInit = False
+ImageInit = False
 #FilePath = "G:\DML\数据库\VIPeRa\\all"
 
 # #-----------------------------------------------------------------------------------------------------------------------------
@@ -47,10 +50,10 @@ FinalLocalSize = 2048
 # #-----------------------------------------------------------------------------------------------------------------------------
 
 print("----------------------------------------\n" * 2)
-print("begin construct deep model:")
+print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "begin construct deep model:")
 
-image_holder = tf.placeholder(tf.float32,[BatchSize * 2, ImageHeight, ImageWidth, 3])
-label_holder = tf.placeholder( tf.int32, [BatchSize * 2] )
+image_holder = tf.placeholder(tf.float32,[BatchSize, ImageHeight, ImageWidth, 3])
+label_holder = tf.placeholder( tf.int32, [BatchSize] )
 
 class Block(collections.namedtuple('Block', ['scope', 'unit_fn', 'args'])):
     '''
@@ -250,7 +253,7 @@ def resnet_v2(inputs, # A tensor of size [batch, height_in, width_in, channels].
                         logits = net[:,0,0,:], labels = label_holder )
 
             loss = tf.reduce_mean( cross_entropy )
-            train_op = tf.train.AdamOptimizer( 1e-3 ).minimize( loss )
+            train_op = tf.train.AdamOptimizer( 1e-6 ).minimize( loss )
 
             end_points = slim.utils.convert_collection_to_dict(end_points_collection) # 将collection转化为python的dict
             if num_classes is not None:
@@ -350,9 +353,9 @@ def resnet_v2_200(inputs, # unit提升的主要场所是block2
 
 # inputs = tf.random_uniform((batch_size, height, width, 3))
 with slim.arg_scope(resnet_arg_scope(is_training=True)): # is_training设置为false
-    train_op, loss, net, end_points, FinalLocal, top_k_op = resnet_v2_152(image_holder, TrainLen)
+    train_op, loss, net, end_points, FinalLocal, top_k_op = resnet_v2_152(image_holder, ClassNum)
 
-print("loss done!")
+print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " +"loss done!")
 
 # #-----------------------------------------------------------------------------------------------------------------------------
 # #------------------------------------------------- function define  ----------------------------------------------------------
@@ -366,45 +369,17 @@ def read_image( filepath ):
     return img
 
 def read_image_in_pai(FLAGS):
-    img = np.zeros([1264,128,48,3])
+    img = np.zeros([TrainLen,ImageHeight, ImageWidth,3])
+    label = np.zeros([TrainLen])
     dirname = os.path.join(FLAGS.buckets, "")
     files = tf.gfile.ListDirectory(dirname) 
     for i in range(len(files)) :
+        if i % 1000 == 0:
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "read the " + str(i+1) + "th image")
         imagepath = os.path.join(FLAGS.buckets, files[i])
         img[i] = read_image(imagepath)
-    # tempimg = io.imread(os.path.join(file_path,img_list[133]))
-    # print(tempimg[111,33])
-    # print(img[133,111,33])
-    return img
-
-def randimg( image, index ):
-    label = [ i for i in range(TrainLen) ]
-    select = random.sample(label,BatchSize)
-    id1 = [ index[i] for i in select ]
-    id2 = [ i + SampleLen for i in id1 ]
-    id = id1 + id2 
-    anslabel = select + select
-    return image[id], anslabel
-
-def get_cmc( image_feature ):
-    dist = np.zeros([TestLen,TestLen])
-    for i in range( TestLen ) :
-        for j in range( TestLen ) : 
-            dist[i,j] = sum( ( image_feature[i] - image_feature[j+TestLen] ) * ( image_feature[i] - image_feature[j+TestLen] ) )
-    cmc = np.zeros([TestLen,TestLen])
-    for i in range( TestLen ) :
-        cnt = 0
-        for j in range( TestLen ) :
-            if dist[i,j] < dist[i,i] : 
-                cnt += 1
-        cmc[i,cnt] = 1.0
-    cmc = sum( cmc )
-    presum = 0
-    for i in range( TestLen ) :
-        presum += cmc[i]
-        cmc[i] = presum
-    cmc = cmc / TestLen 
-    return cmc
+        label[i] = int(files[i][0:4])
+    return img, label
 
 #-------------------评测函数---------------------------------
 # 测试152层深的ResNet的forward性能
@@ -430,6 +405,36 @@ def time_tensorflow_run(session, target, info_string):
            (datetime.now(), info_string, num_batches, mn, sd))
 
 
+def get_cmc( feature_probe, label_probe, feature_gallery, label_gallery ):
+    dist = np.zeros([int(TrainLen/2),int(TrainLen/2)])
+    index = { i : [] for i in range(-1,1502) }
+    for i in range(int(TrainLen/2)):
+        index[label_gallery[i]].append(i)
+    for i in range(int(TrainLen/2)):
+        if i % 100 == 0:
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th dist begin!")
+        for j in range(int(TrainLen/2)):
+            dist[i,j] = sum( (feature_probe[i] - feature_gallery[j] )**2 )
+    cmc = np.zeros([int(TrainLen/2),int(TrainLen/2)])
+    for i in range(int(TrainLen/2)):
+        tm = int(TrainLen/2)
+        if i % 100 == 0:
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th cmc begin!")
+        for t in range(len(index[label_probe[i]])):
+            cnt = 0
+            for j in range(int(TrainLen/2)):
+                if dist[i,j] < dist[i,index[label_probe[i]][t]]:
+                    cnt += 1
+            tm = min( tm, cnt )
+        cmc[i][tm] = 1.0
+    cmc = sum( cmc )
+    presum = 0
+    for i in range( int(TrainLen/2) ) :
+        presum += cmc[i]
+        cmc[i] = presum
+    cmc = cmc / int(TrainLen/2) 
+    return cmc
+
 # #-----------------------------------------------------------------------------------------------------------------------------
 # #-----------------------------------------------------------------------------------------------------------------------------
 # #-----------------------------------------------------------------------------------------------------------------------------
@@ -447,97 +452,102 @@ FLAGS, _ = parser.parse_known_args()
 
 
 print("----------------------------------------\n" * 2)
-print("read image\n")
-img = read_image_in_pai(FLAGS)
-print("image size") 
-print(img.shape)
+print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "read image\n")
+if ImageInit:
+    img, label = read_image_in_pai(FLAGS)
+else:
+    GalleryImg = np.zeros([TrainLen,ImageHeight, ImageWidth,3])
+    ProbeImg = np.zeros([TrainLen,ImageHeight, ImageWidth,3])
+    DataBlockNum = 1
+    for i in range(DataBlockNum):
+        dirname = os.path.join(FLAGS.buckets, "ViperProbeImage" + str(i+1) + ".txt")
+        x = file_io.read_file_to_string(dirname)
+        x = np.fromstring(x)
+        x = x.reshape([int(ProbeLen/DataBlockNum),ImageHeight, ImageWidth,3])
+        ProbeImg[int((ProbeLen/DataBlockNum*i)):int((ProbeLen/DataBlockNum*(i+1))),:,:,:] = x
+        # print(img_probe[int((ProbeLen/DataBlockNum*i)),0,0,:])
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th probe image block read done!")
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "Probe image done!\n")
+    for i in range(DataBlockNum):
+        dirname = os.path.join(FLAGS.buckets, "ViperGalleryImage" + str(i+1) + ".txt")
+        x = file_io.read_file_to_string(dirname)
+        x = np.fromstring(x)
+        x = x.reshape([int(GalleryLen/DataBlockNum),ImageHeight, ImageWidth,3])
+        GalleryImg[int((GalleryLen/DataBlockNum*i)):int((GalleryLen/DataBlockNum*(i+1))),:,:,:] = x
+        # print(img_gallery[int((GalleryLen/DataBlockNum*i)),0,0,:])
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th gallery image block read done!")
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "Gallery image done!\n")
+print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "Gallery image size : ") 
+print(GalleryImg.shape)
+print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "probe image size : ") 
+print(ProbeImg.shape)
 
 print("----------------------------------------\n" * 2)
-print("session initial")
+print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "session initial")
 sess = tf.InteractiveSession()
 tf.global_variables_initializer().run()
 
-# num_batches=100
-# time_tensorflow_run(sess, net, "Forward") 
-
-for times in range(1):
+for times in range(10):
     print("**************************************************************\n" * 2)
-    print(" the " + str(times) + "th random begin :")
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(times + 1) + "th Viper train begin :")
     tf.global_variables_initializer().run()
-    saver = tf.train.Saver()  
+    # saver = tf.train.Saver()  
 
-    train_index = random.sample([ i for i in range(TrainLen)],TrainLen)
-    test_index = list( set( [ i for i in range(SampleLen) ] ) - set( train_index ) )
-    # print("--------------------------------------- train_index\n")
-    # print(train_index)
-    # print("--------------------------------------- test_index\n")
-    # print(test_index)
-    id11 = test_index
-    id22 = [ i + SampleLen for i in id11 ]
-    idd = id11 + id22
-    test_img = img[idd]
+    train_index = random.sample([ i for i in range(TrainLen)],int(TrainLen/2))
+    test_index = list( set( [ i for i in range(TrainLen) ] ) - set( train_index ) )
     
-    for i in range(200):
+    tempTrainImage = np.zeros([TrainLen,ImageHeight, ImageWidth,3])
+    tempTrainLabel = np.zeros([TrainLen])
+
+    tempTestProbeImage = np.zeros([int(TrainLen/2),ImageHeight, ImageWidth,3])
+    tempTestProbeLabel = np.zeros([int(TrainLen/2)])
+    tempTestGalleryImage = np.zeros([int(TrainLen/2),ImageHeight, ImageWidth,3])
+    tempTestGalleryLabel = np.zeros([int(TrainLen/2)])
+
+    tempTrainImage[0:int(TrainLen/2)] = ProbeImg[train_index]
+    tempTrainLabel[0:int(TrainLen/2)] = [i for i in range(1,int(TrainLen/2)+1)]
+    tempTrainImage[int(TrainLen/2):TrainLen] = GalleryImg[train_index]
+    tempTrainLabel[int(TrainLen/2):TrainLen] = [i for i in range(1,int(TrainLen/2)+1)]
+
+    tempTestProbeImage[0:int(TrainLen/2)] = ProbeImg[test_index]
+    tempTestProbeLabel[0:int(TrainLen/2)] = [i for i in range(1,int(TrainLen/2)+1)]
+    tempTestGalleryImage[0:int(TrainLen/2)] = GalleryImg[test_index]
+    tempTestGalleryLabel[0:int(TrainLen/2)] = [i for i in range(1,int(TrainLen/2)+1)]
+    
+    for i in range(3000):
         if i % 100 == 0:
             print("----------------------------------------\n" * 2)
-            print(" the " + str(i) + "th :")
-        tmpimg, tmplabel = randimg( img, train_index )
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th begin :")
+        tempIndex = random.sample([ t for t in range(TrainLen)],BatchSize)
+        _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tempTrainImage[tempIndex], label_holder : tempTrainLabel[tempIndex] })
         if i % 100 == 0:
-            print(" the " + str(i) + "th begin :")
-        _, t1 = sess.run([ train_op, loss], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
-        #print("----------------------------------------\n" * 2)
-        if i % 100 == 0:
-            t1, t2 = sess.run([ top_k_op, loss ], feed_dict={ image_holder : tmpimg, label_holder : tmplabel })
-            print(" the " + str(i) + "th accuracy :")
-            print( np.sum(t1) / 2.0 / BatchSize )
-            print(" the " + str(i) + "th loss :")
-            print( t2 )
-            # print(" the " + str(i) + "th class accuracy:")
-            print(" the " + str(i) + "th train cmc:")
-            # cnt = 0
-            test_feature = np.zeros([TestLen*2,FinalLocalSize])
-            tmpindex = 0
-            for j in train_index:
-                tmpimg[0] = img[j]
-                tmpimg[1] = img[j+SampleLen]
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i + 1) + "th loss :")
+            print( t1 )
+            
+            feature_gallery = np.zeros([int(TrainLen/2),FinalLocalSize])
+            feature_probe = np.zeros([int(TrainLen/2),FinalLocalSize])
+            tmpimg = np.zeros([BatchSize, ImageHeight, ImageWidth, 3])
+            for j in range(int(int(TrainLen/2)/BatchSize)):
+                # print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th gallery image feature get!")
+                tmpimg = tempTestGalleryImage[(j*BatchSize):((j+1)*BatchSize)]
                 t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
-                t1 = np.array(t1[0])
-                # print(t1[0])
-                # print(t1[1])
-                test_feature[tmpindex] = t1[0]
-                test_feature[tmpindex+TestLen] = t1[1]
-                tmpindex += 1
-            cmc = get_cmc( test_feature )
-            print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
-            print( "%.2f%% "%(cmc[TestLen-1]*100)  )
-    
-            print(" the " + str(times) + "th test cmc:")
-            # cnt = 0
-            test_feature = np.zeros([TestLen*2,FinalLocalSize])
-            tmpindex = 0
-            for j in test_index:
-                tmpimg[0] = img[j]
-                tmpimg[1] = img[j+SampleLen]
+                feature_gallery[(j*BatchSize):((j+1)*BatchSize)] = t1[0]
+            tmpimg = tempTestGalleryImage[(int(TrainLen/2)-BatchSize):(int(TrainLen/2))]
+            t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
+            feature_gallery[(int(TrainLen/2)-BatchSize):(int(TrainLen/2))] = t1[0]
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th gallery image feature done!")
+
+            for j in range(int(int(TrainLen/2)/BatchSize)):
+                # print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th probe image feature get!")
+                tmpimg = tempTestProbeImage[(j*BatchSize):((j+1)*BatchSize)]
                 t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
-                t1 = np.array(t1[0])
-                # print(t1.shape)
-                test_feature[tmpindex] = t1[0]
-                test_feature[tmpindex+TestLen] = t1[1]
-                tmpindex += 1
-            cmc = get_cmc( test_feature )
+                feature_probe[(j*BatchSize):((j+1)*BatchSize)] = t1[0]
+            tmpimg = tempTestProbeImage[(int(TrainLen/2)-BatchSize):(int(TrainLen/2))]
+            t1 = sess.run([FinalLocal], feed_dict = { image_holder : tmpimg } )
+            feature_probe[(int(TrainLen/2)-BatchSize):(int(TrainLen/2))] = t1[0]
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th probe image feature done!")
+
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th cmc calculate begin :")
+            cmc = get_cmc( feature_probe, tempTestProbeLabel, feature_gallery, tempTestGalleryLabel )
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th cmc :")
             print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
-            print( "%.2f%% "%(cmc[TestLen-1]*100)  )
-            #     t1 = np.array(t1[0])
-            #     # print(t1.shape)
-            #     t1 = np.argmax(t1,1)
-            #     print(t1)
-            #     if t1[0] == t1[1] :
-            #         cnt += 1
-            # print( cnt * 1.0 / TrainLen )
-    
-    
-    savepath = os.path.join(FLAGS.checkpointDir, "model.ckpt")
-    savepath = saver.save(sess,savepath)
-    # img = io.imread(FilePath + '\\0001001.bmp')
-    # print(FilePath)
-    # print(img.shape)

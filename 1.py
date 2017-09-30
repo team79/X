@@ -1,5 +1,3 @@
 import numpy as np
 
-a =  np.array([1,2,3])
-b = np.array([3,4,5])
-print(sum((a-b)**2))
+print([i for i in range(1,4)])

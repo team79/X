@@ -408,15 +408,19 @@ def time_tensorflow_run(session, target, info_string):
 
 def get_cmc( feature_probe, label_probe, feature_gallery, label_gallery ):
     dist = np.zeros([ProbeLen,GalleryLen])
-    index = { i : [] for i in range(1502) }
+    index = { i : [] for i in range(-1,1502) }
     for i in range(GalleryLen):
         index[label_gallery[i]].append(i)
     for i in range(ProbeLen):
+        if i % 100 == 0:
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th dist begin!")
         for j in range(GalleryLen):
             dist[i,j] = sum( (feature_probe[i] - feature_gallery[j] )**2 )
     cmc = np.zeros([ProbeLen,GalleryLen])
     for i in range(ProbeLen):
         tm = GalleryLen
+        if i % 100 == 0:
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th cmc begin!")
         for t in range(len(index[label_probe[i]])):
             cnt = 0
             for j in range(GalleryLen):
@@ -429,7 +433,7 @@ def get_cmc( feature_probe, label_probe, feature_gallery, label_gallery ):
     for i in range( GalleryLen ) :
         presum += cmc[i]
         cmc[i] = presum
-    cmc = cmc / TestLen 
+    cmc = cmc / ProbeLen 
     return cmc
     
 # #-----------------------------------------------------------------------------------------------------------------------------
@@ -462,15 +466,17 @@ else:
         x = np.fromstring(x)
         x = x.reshape([int(ProbeLen/DataBlockNum),ImageHeight, ImageWidth,3])
         img_probe[int((ProbeLen/DataBlockNum*i)):int((ProbeLen/DataBlockNum*(i+1))),:,:,:] = x
-        print(img_probe[int((ProbeLen/DataBlockNum*i)),0,0,:])
+        # print(img_probe[int((ProbeLen/DataBlockNum*i)),0,0,:])
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th probe image block read done!")
     for i in range(DataBlockNum):
         dirname = os.path.join(FLAGS.buckets, "Mk1501TestProbeLabel" + str(i+1) + ".txt")
         x = file_io.read_file_to_string(dirname)
         x = np.fromstring(x)
         x = x.reshape([int(ProbeLen/DataBlockNum)])
         label_probe[int((ProbeLen/DataBlockNum*i)):int((ProbeLen/DataBlockNum*(i+1)))] = x
-        print(label_probe[int((ProbeLen/DataBlockNum*i))])
-    print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "Probe image done!\n")
+        # print(label_probe[int((ProbeLen/DataBlockNum*i))])
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th probe label block read done!")
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "Probe label done!\n")
 
     img_gallery = np.zeros([GalleryLen,ImageHeight, ImageWidth,3])
     label_gallery = np.zeros([GalleryLen])
@@ -481,14 +487,16 @@ else:
         x = np.fromstring(x)
         x = x.reshape([int(GalleryLen/DataBlockNum),ImageHeight, ImageWidth,3])
         img_gallery[int((GalleryLen/DataBlockNum*i)):int((GalleryLen/DataBlockNum*(i+1))),:,:,:] = x
-        print(img_gallery[int((GalleryLen/DataBlockNum*i)),0,0,:])
+        # print(img_gallery[int((GalleryLen/DataBlockNum*i)),0,0,:])
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th gallery image block read done!")
     for i in range(DataBlockNum):
         dirname = os.path.join(FLAGS.buckets, "Mk1501TestGalleryLabel" + str(i+1) + ".txt")
         x = file_io.read_file_to_string(dirname)
         x = np.fromstring(x)
         x = x.reshape([int(GalleryLen/DataBlockNum)])
         label_gallery[int((GalleryLen/DataBlockNum*i)):int((GalleryLen/DataBlockNum*(i+1)))] = x
-        print(label_gallery[int((GalleryLen/DataBlockNum*i))])
+        # print(label_gallery[int((GalleryLen/DataBlockNum*i))])
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th gallery label block read done!")
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "Gallery image done!\n")
 print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "probe image size : ") 
 print(img_probe.shape)
@@ -518,7 +526,7 @@ for times in range(1):
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + "load model variable done!")
 
     print("----------------------------------------\n" * 2)
-    for i in range(10):    
+    for i in range(1):    
         print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th begin :")
         
         feature_gallery = np.zeros([GalleryLen,FinalLocalSize])
@@ -544,7 +552,9 @@ for times in range(1):
         feature_probe[(ProbeLen-BatchSize):(ProbeLen)] = t1[0]
         print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(j*BatchSize+1) + "th probe image feature done!")
 
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th cmc calculate begin :")
         cmc = get_cmc( feature_probe, label_probe, feature_gallery, label_gallery )
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ":  " + " the " + str(i+1) + "th cmc :")
         print( [ "%.2f%% "%(cmc[t]*100) for t in range( 0, 40, 5 )] )
     # savepath = os.path.join(FLAGS.checkpointDir, "model.ckpt")
     # savepath = saver.save(sess,savepath)

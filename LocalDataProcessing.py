@@ -31,12 +31,12 @@ slim = tf.contrib.slim # 使用方便的contrib.slim库来辅助创建ResNet
 #import read_image_in_pai
 
 BatchSize = 128
-TrainLen = 3368
+TrainLen = 632
 ImageHeight = 128
-ImageWidth = 64
+ImageWidth = 48
 ImageChannel = 3
 FinalLocalSize = 2048
-DataBlockNum = 8
+DataBlockNum = 1
 TrainInit = False
 ImageInit = False
 
@@ -47,28 +47,25 @@ ImageInit = False
 #     return img
 
 def read_image_in_pai():
-    img = np.zeros([TrainLen,ImageHeight, ImageWidth,3])
-    label = np.zeros([TrainLen])
-    dirname = "G:\DML\数据库\Market-1501-v15.09.15\Market-1501-v15.09.15\query"
+    GalleryImg = np.zeros([TrainLen,ImageHeight, ImageWidth,3])
+    ProbeImg = np.zeros([TrainLen,ImageHeight, ImageWidth,3])
+    dirname = "G:\DML\数据库\VIPeRa\\all"
     print(dirname)
     files = os.listdir(dirname) 
     #print(files[3368])
     print(len(files))
     cnt = 0
     for i in range(len(files)) :
-        if files[i][-4:-1] != ".jp":
-            continue
-        if i % 1000 == 0:
+        if files[i][-4:-1] != ".bm":
+            continueWWWWWW
+        if i % 100 == 0:
             print("read the " + str(i+1) + "th image")
         imagepath = os.path.join(dirname, files[i])
-        img[cnt] = scipy.ndimage.imread(imagepath, mode="RGB")
-        if  files[i][0] == '-' :
-            label[cnt] = -1
+        if files[i][6] == '1':
+            ProbeImg[int(files[i][0:4])-1] = scipy.ndimage.imread(imagepath, mode="RGB")
         else:
-            label[cnt] = int(files[i][0:4])
-        cnt += 1
-    print(cnt)
-    return img, label
+            GalleryImg[int(files[i][0:4])-1] = scipy.ndimage.imread(imagepath, mode="RGB")
+    return GalleryImg, ProbeImg
 
 
 # parser = argparse.ArgumentParser()
@@ -80,19 +77,17 @@ def read_image_in_pai():
 #                         help='output model path')
 # FLAGS, _ = parser.parse_known_args()
 
-img, label = read_image_in_pai()
-print(img[0,0,0,:])
-print(label[0])
+GalleryImg, ProbeImg = read_image_in_pai()
 for i in range(DataBlockNum):
-    dirname = os.path.join("", "Mk1501TestProbeImage" + str(i+1) + ".txt")
-    C = img[int((TrainLen/DataBlockNum*i)):int((TrainLen/DataBlockNum*(i+1))),:,:,:]
+    dirname = os.path.join("", "ViperProbeImage" + str(i+1) + ".txt")
+    C = ProbeImg[int((TrainLen/DataBlockNum*i)):int((TrainLen/DataBlockNum*(i+1))),:,:,:]
     print(C[0,0,0,:])
     C = C.tostring()
     print(len(C))
     file_io.write_string_to_file(dirname, C )
 for i in range(DataBlockNum):
-    dirname = os.path.join("", "Mk1501TestProbeLabel" + str(i+1) + ".txt")
-    C = label[int((TrainLen/DataBlockNum*i)):int((TrainLen/DataBlockNum*(i+1)))]
+    dirname = os.path.join("", "ViperGalleryImage" + str(i+1) + ".txt")
+    C = GalleryImg[int((TrainLen/DataBlockNum*i)):int((TrainLen/DataBlockNum*(i+1)))]
     print(C[0])
     C = C.tostring()
     print(len(C))
